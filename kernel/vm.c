@@ -26,8 +26,8 @@ void printLevel(pagetable_t pagetable, int level) {
       printf("%d: pte %p pa %p\n", i, pte, PTE2PA(pte));
     }
 
-    if ((pte & PTE_V) && (pte & (PTE_R | PTE_W)) == 0 ) {
-      printLevel((pagetable_t)PTE2PA(pte), level+1); // recursive call from his child
+    if ((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0 ) {
+      printLevel((pagetable_t)PTE2PA(pte), level+1); // recursive call for his child
     }
   }
 }
