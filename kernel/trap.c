@@ -68,30 +68,9 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else if (r_scause() == 13 || r_scause() == 15) {
-    // Lazy Allocation
-    uint64 va = r_stval(); // va = virtual address
-    // If va is higher than size or below the user stack pointer, kill the process
-    if (va >= p->sz || va < PGROUNDDOWN(p->trapframe->sp)) {
-      printf("usertrap(): va is higher than size or below the user stack pointer\n");
-      // p->killed = 1;
-      setkilled(p);
-      goto finish;
-    }
-    
-    char* mem = kalloc(); 
-    if (mem == 0) {
-      printf("usertrap(): kalloc() failed\n");
-      // p->killed = 1;
-      setkilled(p);
-      goto finish;
-    }
-
-    memset(mem, 0, PGSIZE); // zero the page
-
-    if (mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, (uint64) mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0) {
-      kfree(mem);
-      printf("usertrap(): mappages() failed\n");
-      // p->killed = 1;
+    // lazy allocation
+    if (lazyAllocation(p, r_stval()) != 0) {
+      printf("usertrap(): lazy allocation failed\n");
       setkilled(p);
       goto finish;
     }
@@ -100,7 +79,6 @@ usertrap(void)
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     setkilled(p);
   }
-
 finish:
   if(killed(p))
     exit(-1);
