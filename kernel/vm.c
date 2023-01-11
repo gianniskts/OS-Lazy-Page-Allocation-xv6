@@ -18,18 +18,19 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 extern char trampoline[]; // trampoline.S
 
 void printLevel(pagetable_t pagetable, int level) {
-  for (int i=0; i<512; i++) {
-    pte_t pte = pagetable[i];
+  for (int i=0; i<512; i++) { // 512(2^9) entries in a pagetable
+    pte_t pte = pagetable[i]; // get the i-th entry
 
-    if (pte & PTE_V) {
-      for (int j=0; j<=level; j++) {
-        printf(" ..");
+    if (pte & PTE_V) { // if the entry is valid
+      for (int j=0; j<=level; j++) { 
+        printf(" ..");  // print the level of the entry
       }
-      printf("%d: pte %p pa %p\n", i, pte, PTE2PA(pte));
+      printf("%d: pte %p pa %p\n", i, pte, PTE2PA(pte)); // print the physical address and pte
     }
-
+    // if the entry is valid and it is not a leaf node, then it is a parent node
     if ((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0 ) {
-      printLevel((pagetable_t)PTE2PA(pte), level+1); // recursive call for his child
+      uint64 child = PTE2PA(pte); // get the physical address of the child cause this pte points to a lower-level table
+      printLevel((pagetable_t) child, level+1); // recursive call for his child
     }
   }
 }
@@ -96,6 +97,29 @@ kvminithart()
   sfence_vma();
 }
 
+uint64 lazyAllocation(struct proc* process, uint64 va) {
+  if (va >= process->sz || va < PGROUNDDOWN(process->trapframe->sp)) {
+    printf("usertrap(): va is higher than size or below the user stack pointer\n");
+    return -1;
+  }
+
+  char* mem;
+  uint64 a = PGROUNDDOWN(va);
+  if ((mem = kalloc()) == 0) {
+    printf("usertrap(): kalloc failed\n");
+    return -2;
+  }
+  memset(mem, 0, PGSIZE);
+
+  if (mappages(process->pagetable, a, PGSIZE, (uint64)(mem), PTE_W|PTE_X|PTE_R|PTE_U) != 0) {
+    printf("usertrap(): mappages failed\n");
+    kfree(mem);
+    return -3;
+  }
+
+  return 0;
+}
+
 // Return the address of the PTE in page table pagetable
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page-table pages.
@@ -111,13 +135,9 @@ kvminithart()
 pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
 {
-  if(va >= MAXVA) {
-    setkilled(myproc());
-    if(killed(myproc()))
-      exit(-1);
-    // panic("walk");
-  }
-  
+  if(va >= MAXVA)
+    panic("walk");
+
   for(int level = 2; level > 0; level--) {
     pte_t *pte = &pagetable[PX(level, va)];
     if(*pte & PTE_V) {
@@ -140,34 +160,15 @@ walkaddr(pagetable_t pagetable, uint64 va)
 {
   pte_t *pte;
   uint64 pa;
-  struct proc* p = myproc();
 
   if(va >= MAXVA)
     return 0;
 
   pte = walk(pagetable, va, 0);
- 
-  if (pte == 0 || (*pte & PTE_V) == 0) {
-    if (va < p->sz && va >= PGROUNDDOWN(p->trapframe->sp)) {
-      char* mem = kalloc();
-      if (mem == 0) {
-        return 0;
-      }
-      memset(mem, 0, PGSIZE);
-      if (mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, (uint64) mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0) {
-      kfree(mem);
-      return 0;
-      }
-    } else {
-      return 0;
-    }
-  }
- 
- 
-  // if(pte == 0)
-  //   return 0;
-  // if((*pte & PTE_V) == 0)
-  //   return 0;
+  if(pte == 0)
+    return 0;
+  if((*pte & PTE_V) == 0)
+    return 0;
   if((*pte & PTE_U) == 0)
     return 0;
   pa = PTE2PA(*pte);
@@ -203,8 +204,8 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
     if(*pte & PTE_V)
-      // panic("mappages: remap")
-      continue;
+      // panic("mappages: remap");
+      ;
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
       break;
@@ -228,13 +229,12 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
     if((pte = walk(pagetable, a, 0)) == 0)
-      continue;
       // panic("uvmunmap: walk");
-    if((*pte & PTE_V) == 0) // If not mapped
       continue;
+    if((*pte & PTE_V) == 0)
       // panic("uvmunmap: not mapped");
+      continue;
     if(PTE_FLAGS(*pte) == PTE_V)
-      // continue;
       panic("uvmunmap: not a leaf");
     if(do_free){
       uint64 pa = PTE2PA(*pte);
@@ -365,11 +365,11 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
-      continue;
       // panic("uvmcopy: pte should exist");
-    if((*pte & PTE_V) == 0)
       continue;
+    if((*pte & PTE_V) == 0)
       // panic("uvmcopy: page not present");
+      continue;
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
