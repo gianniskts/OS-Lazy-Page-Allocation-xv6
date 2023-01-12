@@ -17,6 +17,7 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
 
+// Helper function for vmprint()
 void printLevel(pagetable_t pagetable, int level) {
   for (int i=0; i<512; i++) { // 512(2^9) entries in a pagetable
     pte_t pte = pagetable[i]; // get the i-th entry
@@ -39,7 +40,7 @@ void
 vmprint(pagetable_t pagetable) 
 {
   printf("page table %p\n", pagetable);
-  printLevel(pagetable, 0);
+  printLevel(pagetable, 0); // start from level 0
 }
 
 // Make a direct-map page table for the kernel.
@@ -97,23 +98,24 @@ kvminithart()
   sfence_vma();
 }
 
-uint64 lazyAllocation(struct proc* process, uint64 va) {
-  if (va >= process->sz || va < PGROUNDDOWN(process->trapframe->sp)) {
+uint64 lazyAllocation(struct proc* process, uint64 va) { // va is the faulting virtual address
+  if (va >= process->sz || va < PGROUNDDOWN(process->trapframe->sp)) { // if the va is higher than the size or below the user stack pointer
     printf("usertrap(): va is higher than size or below the user stack pointer\n");
     return -1;
   }
 
-  char* mem;
-  uint64 a = PGROUNDDOWN(va);
-  if ((mem = kalloc()) == 0) {
+  char* mem; // the memory to be allocated
+  if ((mem = kalloc()) == 0) { // allocate a page
     printf("usertrap(): kalloc failed\n");
     return -2;
   }
-  memset(mem, 0, PGSIZE);
+  memset(mem, 0, PGSIZE); // set the page to 0
+  uint64 virtualPageBase = PGROUNDDOWN(va); // get the virtual page base
 
-  if (mappages(process->pagetable, a, PGSIZE, (uint64)(mem), PTE_W|PTE_X|PTE_R|PTE_U) != 0) {
+  // map the page to the process
+  if (mappages(process->pagetable, virtualPageBase, PGSIZE, (uint64)(mem), PTE_R|PTE_W|PTE_X|PTE_U) != 0) { 
     printf("usertrap(): mappages failed\n");
-    kfree(mem);
+    kfree(mem); // free the page
     return -3;
   }
 
@@ -160,18 +162,26 @@ walkaddr(pagetable_t pagetable, uint64 va)
 {
   pte_t *pte;
   uint64 pa;
+  struct proc* process = myproc();
 
-  if(va >= MAXVA)
+  if(va >= MAXVA) 
     return 0;
-
-  pte = walk(pagetable, va, 0);
-  if(pte == 0)
-    return 0;
-  if((*pte & PTE_V) == 0)
-    return 0;
-  if((*pte & PTE_U) == 0)
-    return 0;
-  pa = PTE2PA(*pte);
+  // get the page table entry and allocate the page through lazy allocation 
+  pte = walk(pagetable, va, 0); 
+  if(pte == 0) { 
+    if ((pa = lazyAllocation(process, va)) != 0) {
+      return 0;
+    }
+  }
+  if((*pte & PTE_V) == 0) 
+    if ((pa = lazyAllocation(process, va)) != 0) {
+      return 0;
+    }
+  if((*pte & PTE_U) == 0) 
+    if ((pa = lazyAllocation(process, va)) != 0) {
+      return 0;
+    }
+  pa = PTE2PA(*pte); // get the physical address
   return pa;
 }
 
@@ -205,7 +215,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
       return -1;
     if(*pte & PTE_V)
       // panic("mappages: remap");
-      ;
+      printf("Don't panic ;)\n");
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
       break;
