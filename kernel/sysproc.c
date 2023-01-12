@@ -44,9 +44,12 @@ sys_sbrk(void)
 
   argint(0, &n);
   addr = process->sz;
+  if (addr + n >= __INT_MAX__) { // overflow check
+    return -1;
+  }
   process->sz += n;
 
-  if (n < 0) {
+  if (n < 0) { // if n is negative then shrink
     uvmdealloc(process->pagetable, addr, process->sz);
   }
   // if(growproc(n) < 0)
