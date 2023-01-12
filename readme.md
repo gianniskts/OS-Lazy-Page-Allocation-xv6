@@ -4,7 +4,7 @@ One of the many neat tricks an O/S can play with page table hardware is lazy all
 
 ## Results
 
-'''
+```
 giannis@giannis-dell-linux:~/Documents/xv6-project-2022$ make grade
 $ make qemu-gdb
 pte printout: OK (1.8s) 
@@ -69,4 +69,4 @@ $ make qemu-gdb
 == Test   usertests: all tests == 
   usertests: all tests: OK 
 Score: 100/100
-'''
+```
