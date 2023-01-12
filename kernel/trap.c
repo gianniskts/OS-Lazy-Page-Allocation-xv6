@@ -71,12 +71,12 @@ usertrap(void)
     // lazy allocation
     if (lazyAllocation(p, r_stval()) != 0) { 
       printf("usertrap(): lazy allocation failed\n");
-      setkilled(p);
+      setkilled(p); // kill the process
     }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
+    setkilled(p); 
   }
 
   if(killed(p))

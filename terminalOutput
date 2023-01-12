@@ -1,0 +1,64 @@
+giannis@giannis-dell-linux:~/Documents/xv6-project-2022$ make grade
+$ make qemu-gdb
+pte printout: OK (1.8s) 
+== Test running lazytests == 
+$ make qemu-gdb
+(2.8s) 
+== Test   lazy: map == 
+  lazy: map: OK 
+== Test   lazy: unmap == 
+  lazy: unmap: OK 
+== Test usertests == 
+$ make qemu-gdb
+(366.0s) 
+== Test   usertests: pgbug == 
+  usertests: pgbug: OK 
+== Test   usertests: sbrkbugs == 
+  usertests: sbrkbugs: OK 
+== Test   usertests: argptest == 
+  usertests: argptest: OK 
+== Test   usertests: sbrkmuch == 
+  usertests: sbrkmuch: OK 
+== Test   usertests: sbrkfail == 
+  usertests: sbrkfail: OK 
+== Test   usertests: sbrkarg == 
+  usertests: sbrkarg: OK 
+== Test   usertests: stacktest == 
+  usertests: stacktest: OK 
+== Test   usertests: execout == 
+  usertests: execout: OK 
+== Test   usertests: copyin == 
+  usertests: copyin: OK 
+== Test   usertests: copyout == 
+  usertests: copyout: OK 
+== Test   usertests: copyinstr1 == 
+  usertests: copyinstr1: OK 
+== Test   usertests: copyinstr2 == 
+  usertests: copyinstr2: OK 
+== Test   usertests: copyinstr3 == 
+  usertests: copyinstr3: OK 
+== Test   usertests: rwsbrk == 
+  usertests: rwsbrk: OK 
+== Test   usertests: sbrk8000 == 
+  usertests: sbrk8000: OK 
+== Test   usertests: reparent == 
+  usertests: reparent: OK 
+== Test   usertests: twochildren == 
+  usertests: twochildren: OK 
+== Test   usertests: forkfork == 
+  usertests: forkfork: OK 
+== Test   usertests: forkforkfork == 
+  usertests: forkforkfork: OK 
+== Test   usertests: exectest == 
+  usertests: exectest: OK 
+== Test   usertests: sbrkbasic == 
+  usertests: sbrkbasic: OK 
+== Test   usertests: kernmem == 
+  usertests: kernmem: OK 
+== Test   usertests: mem == 
+  usertests: mem: OK 
+== Test   usertests: forktest == 
+  usertests: forktest: OK 
+== Test   usertests: all tests == 
+  usertests: all tests: OK 
+Score: 100/100
